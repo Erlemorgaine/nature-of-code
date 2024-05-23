@@ -41,8 +41,9 @@ export class Mover {
 		// atan2 instead of atan, to differ between angle for velocity (-3, 4) and (3, -4)
 		// const angle = p.atan2(this.velocity.y, this.velocity.x);
 		// This does the same!
-		const angle = this.velocity.heading();
+		this.angle += this.velocity.heading();
 
+		p.background(220);
 		p.stroke(0);
 		p.fill(175, 200);
 
@@ -52,9 +53,68 @@ export class Mover {
 		p.rectMode(p.CENTER);
 		p.translate(this.location.x, this.location.y);
 		// p.rotate(this.angle);
-		p.rotate(angle);
+		p.rotate(this.angle);
 		p.rect(0, 0, this.mass * 16, this.mass * 16);
 
 		p.pop();
+	}
+}
+
+export class Oscillator {
+	angle: Vector;
+	aVelocity: Vector;
+	amplitude: Vector;
+
+	constructor(aVelocity: Vector, amplitude: Vector, angle: Vector) {
+		this.angle = angle;
+		this.aVelocity = aVelocity;
+		this.amplitude = amplitude;
+	}
+}
+
+export class Pendulum {
+	r: number; // Length of pendulum arm
+	angle: number;
+	aVelocity: number;
+	aAcceleration: number = 0;
+	dampingFactor: number = 1;
+
+	constructor(r: number, angle: number, aVelocity: number) {
+		this.r = r;
+		this.angle = angle;
+		this.aVelocity = aVelocity;
+	}
+
+	update(p: p5) {
+		const gravity = 0.4; // This is a random initalization
+
+		// Acceleration = force (gravity) * sinus of current angle.
+		// Also, the longer the arm, the slower acceleration (A = F / M)
+		this.aAcceleration = (-1 * gravity * p.sin(this.angle)) / this.r;
+		this.aVelocity += this.aAcceleration;
+		this.aVelocity *= this.dampingFactor;
+		this.angle += this.aVelocity;
+
+		this.dampingFactor *= 0.99999;
+	}
+
+	display(p: p5) {
+		// Arbitrary pendulum location
+		const location = { x: p.width * 0.5, y: 5 };
+
+		const pendulumStartLocation = {
+			x: location.x + p.cos(this.angle + Math.PI * 0.5) * this.r,
+			y: location.y + p.sin(this.angle + Math.PI * 0.5) * this.r
+		};
+
+		p.background(220);
+		p.stroke(0);
+		p.fill(175, 200);
+
+		// Pendulum location
+		p.circle(location.x, location.y, 3);
+		p.circle(pendulumStartLocation.x, pendulumStartLocation.y, 16);
+
+		p.line(location.x, location.y, pendulumStartLocation.x, pendulumStartLocation.y);
 	}
 }
