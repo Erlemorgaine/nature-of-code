@@ -18,7 +18,7 @@
 				3
 			);
 
-			const pendulum = new Pendulum(200, Math.PI * 0.5, 0);
+			const pendulum = new Pendulum(p.createVector(p.width * 0.5, 5), 200, Math.PI * 0.5, 0);
 
 			p.setup = function () {
 				p.createCanvas(p.windowWidth, p.windowHeight);

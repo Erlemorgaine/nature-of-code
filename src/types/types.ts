@@ -73,13 +73,15 @@ export class Oscillator {
 }
 
 export class Pendulum {
+	anchor: Vector;
 	r: number; // Length of pendulum arm
 	angle: number;
 	aVelocity: number;
 	aAcceleration: number = 0;
 	dampingFactor: number = 1;
 
-	constructor(r: number, angle: number, aVelocity: number) {
+	constructor(anchor: Vector, r: number, angle: number, aVelocity: number) {
+		this.anchor = anchor;
 		this.r = r;
 		this.angle = angle;
 		this.aVelocity = aVelocity;
@@ -100,11 +102,10 @@ export class Pendulum {
 
 	display(p: p5) {
 		// Arbitrary pendulum location
-		const location = { x: p.width * 0.5, y: 5 };
 
-		const pendulumStartLocation = {
-			x: location.x + p.cos(this.angle + Math.PI * 0.5) * this.r,
-			y: location.y + p.sin(this.angle + Math.PI * 0.5) * this.r
+		const bobStartLocation = {
+			x: this.anchor.x + p.cos(this.angle + Math.PI * 0.5) * this.r,
+			y: this.anchor.y + p.sin(this.angle + Math.PI * 0.5) * this.r
 		};
 
 		p.background(220);
@@ -112,9 +113,34 @@ export class Pendulum {
 		p.fill(175, 200);
 
 		// Pendulum location
-		p.circle(location.x, location.y, 3);
-		p.circle(pendulumStartLocation.x, pendulumStartLocation.y, 16);
+		p.circle(this.anchor.x, this.anchor.y, 3);
+		p.circle(bobStartLocation.x, bobStartLocation.y, 16);
 
-		p.line(location.x, location.y, pendulumStartLocation.x, pendulumStartLocation.y);
+		p.line(this.anchor.x, this.anchor.y, bobStartLocation.x, bobStartLocation.y);
+	}
+}
+
+export class Spring {
+	anchor: Vector;
+	bobStart: Vector;
+	restLength: number; // Length of the spring when it is at rest
+
+	k: number = 0.1; // A constant, determines if spring is very rigid or very elastic
+
+	constructor(anchor: Vector, bobStart: Vector, restLength: number) {
+		this.anchor = anchor;
+		this.bobStart = bobStart;
+		this.restLength = restLength;
+	}
+
+	display(p: p5) {}
+
+	update(p: p5) {
+		const force = this.anchor.sub(this.bobStart);
+		const currentLength = force.mag();
+		const x = currentLength - this.restLength;
+
+		force.normalize();
+		force.mult(-1 * this.k * x);
 	}
 }
