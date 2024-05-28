@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type p5 from 'p5';
 	import '../main.css';
-	import { Mover, Pendulum } from '../types/types';
+	import { Mover, Pendulum, Spring, Particle, Emitter } from '../types/types';
 
 	let canvasContainer: HTMLDivElement;
 	let myP5: p5;
@@ -20,6 +20,8 @@
 
 			const pendulum = new Pendulum(p.createVector(p.width * 0.5, 5), 200, Math.PI * 0.5, 0);
 
+			const emitter = new Emitter(p.createVector(p.windowWidth * 0.5, p.windowHeight * 0.5));
+
 			p.setup = function () {
 				p.createCanvas(p.windowWidth, p.windowHeight);
 				p.fill(255, 204, 0);
@@ -29,17 +31,48 @@
 			p.draw = function () {
 				// mover.update(p);
 				// mover.display(p);
+				// pendulum.display(p);
+				// pendulum.update(p);
 
-				pendulum.display(p);
-				pendulum.update(p);
+				showParticle(p, emitter);
 			};
 
 			// rotateBatonByAngle(p);
 			// makeWaves(p);
+			// showSpring(p);
 		}
 
 		myP5 = new p5(sketch, canvasContainer);
 	});
+
+	function showParticle(p: p5, emitter: Emitter) {
+		p.background(220);
+
+		emitter.run(p);
+	}
+
+	function showSpring(p: p5) {
+		const bob = new Mover(
+			p.createVector(p.windowWidth * 0.75, 100),
+			p.createVector(0, 0),
+			p.createVector(0, 0),
+			5
+		);
+
+		const spring = new Spring(p.createVector(p.windowWidth * 0.5, 5), 200);
+
+		p.draw = function () {
+			let gravity = p.createVector(0, 1); // Arbitrary gravity force
+			bob.applyForce(gravity);
+			bob.update(p);
+
+			spring.connect(bob);
+
+			bob.display(p);
+			spring.showLine(p, bob);
+			spring.display(p);
+		};
+	}
 
 	// 3 Oscillation - 3.2
 	function rotateBatonByAngle(p: p5) {
