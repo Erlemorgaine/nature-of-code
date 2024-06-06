@@ -2,10 +2,27 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type p5 from 'p5';
 	import '../main.css';
-	import { Mover, Pendulum, Spring, Particle, Emitter } from '../types/types';
+	import {
+		Mover,
+		Pendulum,
+		Spring,
+		Repeller,
+		Emitter,
+		Organism,
+		Particle,
+		CustomShape,
+		Boundary,
+		LittleAlien,
+		SeeSaw
+	} from '../types/types';
+	import Matter, { type Engine } from 'matter-js';
 
 	let canvasContainer: HTMLDivElement;
 	let myP5: p5;
+
+	const { Engine, Mouse, MouseConstraint, Composite } = Matter;
+
+	let engine: Engine;
 
 	onMount(async () => {
 		const p5 = (await import('p5')).default;
@@ -18,14 +35,38 @@
 				3
 			);
 
-			const pendulum = new Pendulum(p.createVector(p.width * 0.5, 5), 200, Math.PI * 0.5, 0);
+			const pendulum = new Pendulum(p.createVector(p.windowWidth * 0.5, 5), 200, Math.PI * 0.5, 0);
 
-			const emitter = new Emitter(p.createVector(p.windowWidth * 0.5, p.windowHeight * 0.5));
+			const emitters: Emitter[] = [];
+			const repeller = new Repeller(p.createVector(p.windowWidth * 0.33, p.windowHeight - 100));
+
+			const organism = new Organism(
+				p.createVector(p.windowWidth * 0.33, p.windowHeight * 0.5),
+				p.createVector(0, 0),
+				p.createVector(1, 0.5)
+			);
+
+			const seekTarget = new Particle(
+				p.createVector(p.windowWidth * 0.5, p.windowHeight * 0.5),
+				p.createVector(0, 0),
+				p.createVector(p.random(-2, 2), p.random(-2, 2)),
+
+				Math.random() * 10 + 10
+			);
 
 			p.setup = function () {
-				p.createCanvas(p.windowWidth, p.windowHeight);
+				const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
 				p.fill(255, 204, 0);
 				// mover.display(p);
+
+				engine = Engine.create();
+
+				const mouse = Mouse.create(canvas.elt);
+				const mouseConstraint = MouseConstraint.create(engine, {
+					mouse,
+					constraint: { stiffness: 0.7 }
+				});
+				Composite.add(engine.world, mouseConstraint);
 			};
 
 			p.draw = function () {
@@ -33,22 +74,138 @@
 				// mover.display(p);
 				// pendulum.display(p);
 				// pendulum.update(p);
-
-				showParticle(p, emitter);
+				// showEmitter(p, emitters, repeller);
+				// wanderingOrganism(p, organism);
+				// boundariesOrganism(p, organism);
 			};
 
 			// rotateBatonByAngle(p);
 			// makeWaves(p);
 			// showSpring(p);
+			fallingShapes(p);
+
+			// TODO: Matter attractor
+			// TODO: Matter bridge with constraints
 		}
 
 		myP5 = new p5(sketch, canvasContainer);
 	});
 
-	function showParticle(p: p5, emitter: Emitter) {
-		p.background(220);
+	function fallingShapes(p: p5) {
+		const shapes: (CustomShape | LittleAlien)[] = [];
+		let boundaries: Boundary[];
+		let seeSaw: SeeSaw;
 
-		emitter.run(p);
+		p.draw = function () {
+			if (engine) {
+				if (!boundaries) {
+					boundaries = [
+						new Boundary(
+							p.windowWidth * 0.35 + 20,
+							p.height * 0.5,
+							p.windowWidth * 0.45,
+							10,
+							engine.world
+						)
+					];
+				}
+
+				if (!seeSaw) {
+					seeSaw = new SeeSaw(
+						p.windowWidth * 0.75,
+						p.windowHeight - 200,
+						p.windowWidth * 0.25,
+						20,
+						engine.world
+					);
+				}
+
+				p.background(220);
+
+				Engine.update(engine);
+
+				if (p.random(1) < 0.05) {
+					const newShape =
+						Math.random() < 0.33
+							? new CustomShape(p.windowWidth / 2, 50, engine.world)
+							: new LittleAlien(
+									p.windowWidth / 2,
+									50,
+									Math.random() * 25 + 25,
+									Math.random() * 25 + 25,
+									engine.world
+								);
+					shapes.push(newShape);
+				}
+
+				seeSaw.show(p);
+
+				// Display all the boundaries
+				for (let i = 0; i < boundaries.length; i++) {
+					boundaries[i].show(p);
+				}
+
+				// Iterate over the boxes backwards
+				for (let i = shapes.length - 1; i >= 0; i--) {
+					shapes[i].show(p);
+					// Remove the Body from the world and the array
+					if (shapes[i].checkEdge(p)) {
+						shapes[i].removeBody(engine.world);
+						shapes.splice(i, 1);
+					}
+				}
+			}
+		};
+	}
+
+	function boundariesOrganism(p: p5, organism: Organism) {
+		// target.update();
+		organism.boundaries(p, 25);
+		organism.update();
+		organism.show(p);
+	}
+
+	function wanderingOrganism(p: p5, organism: Organism) {
+		organism.maxspeed = 1;
+
+		// target.update();
+		organism.wander(p, 200);
+		organism.update();
+		organism.show(p);
+	}
+
+	function seekingOrganism(p: p5, organism: Organism, target: Particle) {
+		organism.update();
+
+		target.position = p.createVector(p.mouseX, p.mouseY);
+		// target.update();
+		organism.seek(p, target.position);
+		organism.show(p);
+		target.show(p);
+	}
+
+	function showEmitter(p: p5, emitters: Emitter[], repeller: Repeller) {
+		p.background(20, 30); // Add also value for alpha
+
+		if (!emitters.length) {
+			emitters.push(new Emitter(p.createVector(p.windowWidth * 0.5, p.windowHeight * 0.5)));
+		}
+
+		emitters.forEach((emitter) => {
+			if (!emitter.systemDying) {
+				emitter.addParticle(p);
+			}
+
+			emitter.applyForce(p.createVector(0, 0.25)); // Simulate 'gravity'
+			emitter.applyRepeller(repeller);
+
+			emitter.run(p);
+			repeller.show(p);
+
+			if (emitter.isDead()) {
+				emitters.splice(0, 1);
+			}
+		});
 	}
 
 	function showSpring(p: p5) {
@@ -83,7 +240,7 @@
 
 		p.draw = function () {
 			p.background(220);
-			p.translate(p.width * 0.5, p.height * 0.5);
+			p.translate(p.windowWidth * 0.5, p.height * 0.5);
 			p.rotate(angle);
 			p.line(0, 0, 0, -160);
 			p.ellipse(0, 0, 40, 40);
@@ -119,7 +276,7 @@
 
 			// p.beginShape();
 
-			for (let x = 0; x < p.width; x += 20) {
+			for (let x = 0; x < p.windowWidth; x += 20) {
 				// Map the sinus  from a value between -1 and 1 to a value between the last two arguments.
 				// This in practice determines the amplitude
 				const y = p.map(
@@ -130,7 +287,7 @@
 					p.height * 0.7
 				);
 
-				p.circle(x, y, 10, 10);
+				p.circle(x, y, 10);
 				angle += startAngleVelocity;
 			}
 
